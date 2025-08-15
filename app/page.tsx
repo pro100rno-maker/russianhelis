@@ -121,7 +121,7 @@ const INVENTORY = [
     title: "Ми‑8МТВ‑1",
     titleEn: "Mi‑8MTV‑1",
     year: 1991,
-    price: "$3,500,000",
+    price: "$7,000,000",
     location: "RU",
     images: [IMAGES.hero],
     engines: [{ model: "ТВ3‑117ВМ", hours: 1698 },{ model: "ТВ3‑117ВМ", hours: 2693 }],
