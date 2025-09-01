@@ -24,11 +24,11 @@ async function fetchWithFallback(
 ): Promise<{ data: any[]; usedLocale: "ru" | "en" }> {
   const primary = await fetchByLocale(preferred);
   if (primary.length) {
-    return { data: primary, usedLocale: preferred };
+    return { data: primary, usedLocale: preferred as "ru" | "en" };
   }
-  const alt: "ru" | "en" = preferred === "ru" ? "en" : "ru";
+  const alt = preferred === "ru" ? "en" : "ru";
   const secondary = await fetchByLocale(alt);
-  return { data: secondary, usedLocale: alt };
+  return { data: secondary, usedLocale: alt as "ru" | "en" };
 }
 
 /** ========================================= */
@@ -310,27 +310,29 @@ function Marketplace({ t, lang }: any) {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data, usedLocale } = await fetchWithFallback(lang);
-        if (!cancelled) {
-          setItems(data);
-          setUsedLocale (usedLocale as "ru" | "en");
-        }
-      } catch (e) {
-        console.error(e);
-        if (!cancelled) {
-          setItems([]);
-          setUsedLocale(lang);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  let cancelled = false;
+  (async () => {
+    try {
+      setLoading(true);
+      const { data, usedLocale } = await fetchWithFallback(lang);
+      if (!cancelled) {
+        setItems(data);
+        setUsedLocale(usedLocale); // теперь тип совпадает
       }
-    })();
-    return () => { cancelled = true; };
-  }, [lang]);
+    } catch (e) {
+      console.error(e);
+      if (!cancelled) {
+        setItems([]);
+        setUsedLocale(lang);
+      }
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [lang]);
 
   return (
     <Section id="marketplace" className="bg-gray-50">
