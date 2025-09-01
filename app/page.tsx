@@ -19,10 +19,14 @@ async function fetchByLocale(locale: "ru" | "en") {
   return (json.data ?? []) as any[];
 }
 
-async function fetchWithFallback(preferred: "ru" | "en") {
+async function fetchWithFallback(
+  preferred: "ru" | "en"
+): Promise<{ data: any[]; usedLocale: "ru" | "en" }> {
   const primary = await fetchByLocale(preferred);
-  if (primary.length) return { data: primary, usedLocale: preferred };
-  const alt = preferred === "ru" ? "en" : "ru";
+  if (primary.length) {
+    return { data: primary, usedLocale: preferred };
+  }
+  const alt: "ru" | "en" = preferred === "ru" ? "en" : "ru";
   const secondary = await fetchByLocale(alt);
   return { data: secondary, usedLocale: alt };
 }
