@@ -1,7 +1,32 @@
-
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+
+/** ====== STRAPI CLIENT (client-side) ====== */
+const STRAPI_URL =
+  process.env.NEXT_PUBLIC_STRAPI_URL || "https://russianhelis-cms.onrender.com";
+
+function mediaUrl(path?: string) {
+  if (!path) return "";
+  return path.startsWith("http") ? path : `${STRAPI_URL}${path}`;
+}
+
+async function fetchByLocale(locale: "ru" | "en") {
+  const url = `${STRAPI_URL}/api/helicopters?populate=*&locale=${locale}&sort=createdAt:desc`;
+  const res = await fetch(url, { cache: "no-store" }); // всегда свежие данные
+  if (!res.ok) throw new Error(`Strapi ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  return (json.data ?? []) as any[];
+}
+
+async function fetchWithFallback(preferred: "ru" | "en") {
+  const primary = await fetchByLocale(preferred);
+  if (primary.length) return { data: primary, usedLocale: preferred };
+  const alt = preferred === "ru" ? "en" : "ru";
+  const secondary = await fetchByLocale(alt);
+  return { data: secondary, usedLocale: alt };
+}
+/** ========================================= */
 
 const CONTACT = {
   phoneDisplay: "+7 967-250-01-02",
@@ -16,16 +41,16 @@ const IMAGES = {
 
 const DICT = {
   ru: {
-    brand: "Ми‑8: сопровождение строительства",
+    brand: "Ми-8: сопровождение строительства",
     nav: { home: "Главная", what: "Что делаем", why: "Почему важно", process: "Как работаем", experience: "Опыт", cases: "Кейсы", marketplace: "Витрина", contact: "Контакты" },
-    heroTitle: "Ваш Ми‑8 — готов к работе. Без переплат. Без задержек.",
-    heroText: "Мы сопровождаем строительство вертолётов Ми‑8 от выбора комплектации до ввода в эксплуатацию. Работаем с Казанским и Улан‑Удэнским заводами и берём на себя все переговоры, контроль и приёмку.",
+    heroTitle: "Ваш Ми-8 — готов к работе. Без переплат. Без задержек.",
+    heroText: "Мы сопровождаем строительство вертолётов Ми-8 от выбора комплектации до ввода в эксплуатацию. Работаем с Казанским и Улан-Удэнским заводами и берём на себя все переговоры, контроль и приёмку.",
     ctaConsult: "Получить консультацию",
     ctaCall: "Позвонить",
     bulletTiming: "Приёмка 4–5 рабочих дней вместо стандартных 2 недель",
-    bulletMoney: "Экономия до $500 000 на лишних опциях",
+    bulletMoney: "Экономия до $500 000 на лишних опциях",
     bulletFull: "Полный цикл: от ТЗ до ввода в эксплуатацию",
-    whatTitle: "Полный цикл сопровождения покупки Ми‑8",
+    whatTitle: "Полный цикл сопровождения покупки Ми-8",
     whatText: "Берём на себя всё, что владелец не сможет сделать сам — от выбора комплектации до приёмки и управления.",
     whatItems: [
       { title: "Конфигурация под задачи", text: "Подберём комплектацию под грузовые, пассажирские, VIP, санитарные задачи." },
@@ -34,7 +59,7 @@ const DICT = {
       { title: "Управление", text: "Постановка под управление нашей авиакомпании и дальнейшая эксплуатация." },
     ],
     whyTitle: "Почему это важно",
-    whyLead: "Покупка Ми‑8 без профессионального сопровождения = лишние расходы, задержки и риски.",
+    whyLead: "Покупка Ми-8 без профессионального сопровождения = лишние расходы, задержки и риски.",
     whyStats: [
       { title: "Сроки", text: "Приёмка 4–5 рабочих дней вместо стандартных 2 недель." },
       { title: "Деньги", text: "Экономим до $500 000 за счёт оптимизации комплектации." },
@@ -45,16 +70,16 @@ const DICT = {
       { title: "Договор", text: "Подписываем договор на сопровождение: фиксируем этапы и условия." },
       { title: "Конфигурация + КП", text: "Выбираем комплектацию и получаем коммерческое предложение от завода." },
       { title: "Оптимизация", text: "Оптимизируем по срокам и стоимости, убираем лишнее." },
-      { title: "Договор с заводом", text: "Согласовываем договор купли‑продажи, устраняем риски." },
+      { title: "Договор с заводом", text: "Согласовываем договор купли-продажи, устраняем риски." },
       { title: "Постройка", text: "Сопровождаем процесс, приезжаем на завод несколько раз за период строительства." },
       { title: "Финальная приёмка", text: "Проверяем документы и вертолёт на месте, устраняем замечания, передаём клиенту." },
     ],
     expTitle: "Наш опыт",
-    expFacts: ["14 воздушных судов в управлении компании","Приёмка Ми‑8 с Казанского и Улан‑Удэнского заводов","Клиенты из России, Азии и Ближнего Востока"],
+    expFacts: ["14 воздушных судов в управлении компании","Приёмка Ми-8 с Казанского и Улан-Удэнского заводов","Клиенты из России, Азии и Ближнего Востока"],
     casesTitle: "Кейсы",
     cases: [
-      { title: "Кейс — Алтай", text: "Клиент из Республики Алтай заказал Ми‑8 в Казани. Убрали 3 ненужных опции, сэкономив $240 000. Приёмка — 4 рабочих дня вместо 14." },
-      { title: "Кейс — Иркутская область", text: "Контроль сборки на Улан‑Удэнском заводе, установка дополнительных топливных баков, приёмка и ввод в эксплуатацию за 5 рабочих дней." },
+      { title: "Кейс — Алтай", text: "Клиент из Республики Алтай заказал Ми-8 в Казани. Убрали 3 ненужных опции, сэкономив $240 000. Приёмка — 4 рабочих дня вместо 14." },
+      { title: "Кейс — Иркутская область", text: "Контроль сборки на Улан-Удэнском заводе, установка дополнительных топливных баков, приёмка и ввод в эксплуатацию за 5 рабочих дней." },
     ],
     marketTitle: "Витрина — вторичный рынок",
     marketLead: "Подбор, проверка истории, инспекция и сопровождение сделки под ключ.",
@@ -63,26 +88,26 @@ const DICT = {
     contactLead: "Ответим на вопросы, обсудим задачи и предложим оптимальную конфигурацию под ваши цели.",
     formName: "Имя", formPhone: "Телефон", formMsg: "Сообщение",
     formSendMail: "Отправить на почту", formWriteTG: "Написать в Telegram",
-    footer: "Сопровождение строительства вертолётов Ми‑8",
+    footer: "Сопровождение строительства вертолётов Ми-8",
   },
   en: {
-    brand: "Mi‑8: build supervision & delivery",
+    brand: "Mi-8: build supervision & delivery",
     nav: { home: "Home", what: "Services", why: "Value", process: "Process", experience: "Experience", cases: "Case studies", marketplace: "Marketplace", contact: "Contacts" },
-    heroTitle: "Your Mi‑8 — ready for work. No overpayments. No delays.",
-    heroText: "We supervise Mi‑8 builds end‑to‑end: configuration, factory control, final acceptance and entry into service.",
+    heroTitle: "Your Mi-8 — ready for work. No overpayments. No delays.",
+    heroText: "We supervise Mi-8 builds end-to-end: configuration, factory control, final acceptance and entry into service.",
     ctaConsult: "Request a consultation", ctaCall: "Call us",
     bulletTiming: "Final acceptance in 4–5 business days vs typical 2 weeks",
     bulletMoney: "Save up to $500,000 on unnecessary options", bulletFull: "Full cycle: from requirements to entry into service",
-    whatTitle: "Full‑cycle Mi‑8 acquisition support",
+    whatTitle: "Full-cycle Mi-8 acquisition support",
     whatText: "We cover everything — from configuration to factory acceptance and airline management.",
     whatItems: [
-      { title: "Mission‑driven spec", text: "Cargo, passenger, VIP, medevac — tailored configuration." },
+      { title: "Mission-driven spec", text: "Cargo, passenger, VIP, medevac — tailored configuration." },
       { title: "Factory oversight", text: "We align and supervise the assembly, mitigating risks and discrepancies." },
       { title: "Acceptance & docs", text: "Final system checks and paperwork. Ready for entry into service." },
       { title: "Operations", text: "Placement under our AOC and further operations." },
     ],
     whyTitle: "Why it matters",
-    whyLead: "Buying a Mi‑8 without professional support means extra costs, delays and risks.",
+    whyLead: "Buying a Mi-8 without professional support means extra costs, delays and risks.",
     whyStats: [
       { title: "Timing", text: "Final acceptance in 4–5 business days instead of 2 weeks." },
       { title: "Costs", text: "We save up to $500,000 by optimizing configuration." },
@@ -92,48 +117,28 @@ const DICT = {
     steps: [
       { title: "Service agreement", text: "We sign an engagement contract with clear stages and terms." },
       { title: "Spec + quotation", text: "We define configuration and obtain the factory quote." },
-      { title: "Optimization", text: "We optimize cost and lead time, removing non‑essentials." },
+      { title: "Optimization", text: "We optimize cost and lead time, removing non-essentials." },
       { title: "Sales contract", text: "We align the purchase agreement with the factory and mitigate risks." },
       { title: "Build supervision", text: "We visit the factory multiple times through the build phase." },
-      { title: "Final acceptance", text: "On‑site inspections and paperwork — we deliver a fully ready helicopter." },
+      { title: "Final acceptance", text: "On-site inspections and paperwork — we deliver a fully ready helicopter." },
     ],
     expTitle: "Experience",
-    expFacts: ["14 aircraft under management","Mi‑8 acceptances from Kazan and Ulan‑Ude plants","Clients across Russia, Asia and the Middle East"],
+    expFacts: ["14 aircraft under management","Mi-8 acceptances from Kazan and Ulan-Ude plants","Clients across Russia, Asia and the Middle East"],
     casesTitle: "Case studies",
     cases: [
       { title: "Altai region", text: "Removed 3 unnecessary options and saved $240,000. Acceptance took 4 business days instead of 14." },
-      { title: "Irkutsk region", text: "Build supervised at Ulan‑Ude plant with additional fuel tanks. Entry into service in 5 business days." },
+      { title: "Irkutsk region", text: "Build supervised at Ulan-Ude plant with additional fuel tanks. Entry into service in 5 business days." },
     ],
-    marketTitle: "Marketplace — pre‑owned Mi‑8",
-    marketLead: "Selection, history checks, technical inspection and deal support end‑to‑end.",
+    marketTitle: "Marketplace — pre-owned Mi-8",
+    marketLead: "Selection, history checks, technical inspection and deal support end-to-end.",
     marketCTA: "Request details",
     contactTitle: "Get in touch",
     contactLead: "We’ll answer questions, discuss your mission and propose the optimal configuration.",
     formName: "Name", formPhone: "Phone", formMsg: "Message",
     formSendMail: "Send by email", formWriteTG: "Message on Telegram",
-    footer: "Mi‑8 build supervision",
+    footer: "Mi-8 build supervision",
   },
 } as const;
-
-const INVENTORY = [
-  {
-    id: "mi8mtv1-1991",
-    title: "Ми‑8МТВ‑1",
-    titleEn: "Mi‑8MTV‑1",
-    year: 1991,
-    price: "$3,500,000",
-    location: "RU",
-    images: [IMAGES.hero],
-    engines: [{ model: "ТВ3‑117ВМ", hours: 1698 },{ model: "ТВ3‑117ВМ", hours: 2693 }],
-    apu: { model: "АИ‑9В", workHours: 183, starts: 3336, totalHours: 1656 },
-    components: [
-      { name: "Планер", hours: 2403 }, { name: "Главный редуктор ВР‑14", hours: 2403 },
-      { name: "Хвостовой редуктор", hours: 2403 }, { name: "Промежуточный редуктор", hours: 2403 },
-      { name: "Лопасти НВ (комплект)", hours: 274 }, { name: "КАУ‑30Б", hours: 2989 },
-    ],
-    highlights: ["После ремонта", "Готов к эксплуатации"],
-  },
-];
 
 export default function Page() {
   const [lang, setLang] = useState<"ru" | "en">("ru");
@@ -200,7 +205,7 @@ function Hero({ t }: any) {
           <div>
             <figure className="relative aspect-[16/10] w-full rounded-3xl shadow-xl overflow-hidden">
               <img src={IMAGES.hero} alt="Mi-8" className="h-full w-full object-cover"/>
-              <figcaption className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs p-2">Ми‑8: финальная приёмка на площадке</figcaption>
+              <figcaption className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs p-2">Ми-8: финальная приёмка на площадке</figcaption>
             </figure>
           </div>
         </div>
@@ -295,30 +300,96 @@ function Cases({ t }: any) {
 }
 
 function Marketplace({ t, lang }: any) {
-  const inventory = [{ id:"mi8mtv1-1991", title:"Ми‑8МТВ‑1", titleEn:"Mi‑8MTV‑1", year:1991, price:"$3,500,000", images:[IMAGES.hero], engines:[{model:"ТВ3‑117ВМ",hours:1698},{model:"ТВ3‑117ВМ",hours:2693}], apu:{model:"АИ‑9В",workHours:183,starts:3336,totalHours:1656}, components:[{name:"Планер",hours:2403},{name:"Главный редуктор ВР‑14",hours:2403}], highlights:["После ремонта","Готов к эксплуатации"] }];
+  const [items, setItems] = useState<any[]>([]);
+  const [usedLocale, setUsedLocale] = useState<"ru" | "en">(lang);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const { data, usedLocale } = await fetchWithFallback(lang);
+        if (!cancelled) {
+          setItems(data);
+          setUsedLocale(usedLocale);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          setItems([]);
+          setUsedLocale(lang);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [lang]);
+
   return (
     <Section id="marketplace" className="bg-gray-50">
       <Container>
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">{t.marketTitle}</h2>
         <p className="mt-2 text-gray-700">{t.marketLead}</p>
+
+        {loading && <p className="mt-6 text-gray-500">Загрузка…</p>}
+
+        {!loading && items.length === 0 && (
+          <p className="mt-6 text-gray-600">
+            {usedLocale === "ru" ? "Пока нет опубликованных вертолётов." : "No published helicopters yet."}
+          </p>
+        )}
+
         <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {inventory.map((it) => (
-            <div key={it.id} className="card overflow-hidden">
-              <img src={it.images[0]} className="w-full h-44 object-cover" />
-              <div className="card-head flex items-center justify-between">
-                <span>{lang==="ru"?it.title:it.titleEn} • {it.year}</span>
-                <span className="text-sm font-normal text-gray-600">{it.price}</span>
+          {items.map((h: any) => {
+            const a = h.attributes || {};
+            const photo = a.photos?.data?.[0]?.attributes?.url;
+            const name = a.name;
+            const year = a.year ?? "—";
+            const rawPrice = typeof a.price === "number" ? a.price : a.price ? Number(a.price) : undefined;
+            const price = typeof rawPrice === "number"
+              ? `$${rawPrice.toLocaleString("en-US")}`
+              : usedLocale === "ru" ? "Цена по запросу" : "Price on request";
+            const status =
+              a.status === "sold"
+                ? usedLocale === "ru" ? "Продан" : "Sold"
+                : usedLocale === "ru" ? "Продаётся" : "For sale";
+
+            return (
+              <div key={h.id} className="card overflow-hidden">
+                <div className="relative">
+                  <img src={mediaUrl(photo)} alt={name} className="w-full h-44 object-cover" />
+                  <span className={`absolute top-2 right-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                    a.status === "sold" ? "bg-red-600 text-white" : "bg-green-600 text-white"
+                  }`}>
+                    {status}
+                  </span>
+                </div>
+                <div className="card-head flex items-center justify-between">
+                  <span>{name} • {year}</span>
+                  <span className="text-sm font-normal text-gray-600">{price}</span>
+                </div>
+                {a.location && (
+                  <div className="card-body pt-0">
+                    <p className="text-gray-600">
+                      {usedLocale === "ru" ? "Локация: " : "Location: "}{a.location}
+                    </p>
+                  </div>
+                )}
+                <div className="card-body">
+                  <a href="#contact" className="btn btn-primary mt-2">{t.marketCTA}</a>
+                </div>
               </div>
-              <div className="card-body">
-                <h4 className="font-semibold mb-1">{lang==="ru"?"Двигатели":"Engines"}</h4>
-                <ul className="list-disc ml-5">{it.engines.map((e:any,i:number)=>(<li key={i}>{e.model} — {e.hours} ч</li>))}</ul>
-                <h4 className="font-semibold mt-3 mb-1">ВСУ / APU</h4>
-                <p>{it.apu.model} — {it.apu.workHours} ч работы, {it.apu.starts} запусков</p>
-                <a href="#contact" className="btn btn-primary mt-4">{t.marketCTA}</a>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {items.length > 0 && usedLocale !== lang && (
+          <p className="mt-6 text-xs text-gray-500">
+            {lang === "ru" ? "Пока нет русской версии карточек — показаны английские." : "Russian version not available yet — showing English."}
+          </p>
+        )}
       </Container>
     </Section>
   );
@@ -327,7 +398,7 @@ function Marketplace({ t, lang }: any) {
 function Contact({ t }: any) {
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [message, setMessage] = useState("");
   const mailtoHref = useMemo(()=>{
-    const subject = encodeURIComponent("Заявка с сайта: Ми‑8 / Mi‑8");
+    const subject = encodeURIComponent("Заявка с сайта: Ми-8 / Mi-8");
     const body = encodeURIComponent(`Имя/Name: ${name}\nТелефон/Phone: ${phone}\nСообщение/Message: ${message}`);
     return `mailto:${CONTACT.email}?subject=${subject}&body=${body}`;
   }, [name, phone, message]);
