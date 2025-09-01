@@ -30,6 +30,7 @@ async function fetchWithFallback(
   const secondary = await fetchByLocale(alt);
   return { data: secondary, usedLocale: alt };
 }
+
 /** ========================================= */
 
 const CONTACT = {
@@ -316,7 +317,7 @@ function Marketplace({ t, lang }: any) {
         const { data, usedLocale } = await fetchWithFallback(lang);
         if (!cancelled) {
           setItems(data);
-          setUsedLocale(usedLocale);
+          setUsedLocale (usedLocale as "ru" | "en");
         }
       } catch (e) {
         console.error(e);
