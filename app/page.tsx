@@ -349,32 +349,32 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
   const [usedLocale, setUsedLocale] = useState<Locale>(lang);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        // получаем данные и внутренне определённую локаль из бэкапа
-        const { data, usedLocale: usedFromData } = await fetchWithFallback(lang);
-        if (!cancelled) {
-          setItems(data);
-          // НОРМАЛИЗАЦИЯ: какой бы тип ни пришёл снаружи — приводим к 'ru' | 'en'
-          setUsedLocale(toLocale(usedFromData, lang));
-        }
-      } catch (e) {
-        console.error(e);
-        if (!cancelled) {
-          setItems([]);
-          setUsedLocale(lang);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+      setLoading(true);
+      // Переименование при деструктуризации, чтобы НЕ затенять стейт-переменную
+      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang);
+      if (cancelled) return;
+
+      setItems(data);
+
+      // Нормализуем любой внешний ввод в 'ru' | 'en'
+      const nextLocale = toLocale(_usedLocale, lang);
+      setUsedLocale(nextLocale);
+    } catch (e) {
+      console.error(e);
+      if (!cancelled) {
+        setItems([]);
+        setUsedLocale(lang);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [lang]);
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  })();
+  return () => { cancelled = true; };
+}, [lang]);
 
   return (
     <Section id="marketplace" className="bg-gray-50">
