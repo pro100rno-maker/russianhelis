@@ -354,14 +354,15 @@ useEffect(() => {
   (async () => {
     try {
       setLoading(true);
-      // Переименование при деструктуризации, чтобы НЕ затенять стейт-переменную
-      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang);
+
+      // ВАЖНО: переименовали usedLocale из ответа, чтобы не затенять стейт
+      const { data, usedLocale: fetchedLocale } = await fetchWithFallback(lang);
       if (cancelled) return;
 
       setItems(data);
 
       // Нормализуем любой внешний ввод в 'ru' | 'en'
-      const nextLocale = toLocale(_usedLocale, lang);
+      const nextLocale = toLocale(fetchedLocale, lang);
       setUsedLocale(nextLocale);
     } catch (e) {
       console.error(e);
@@ -375,6 +376,7 @@ useEffect(() => {
   })();
   return () => { cancelled = true; };
 }, [lang]);
+
 
   return (
     <Section id="marketplace" className="bg-gray-50">
