@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
-/** ====== STRAPI CLIENT (client-side) ====== */
+/** ====== Типы и Strapi-клиент ====== */
+type Locale = "ru" | "en";
+
 const STRAPI_URL =
   process.env.NEXT_PUBLIC_STRAPI_URL || "https://russianhelis-cms.onrender.com";
 
@@ -11,27 +13,26 @@ function mediaUrl(path?: string) {
   return path.startsWith("http") ? path : `${STRAPI_URL}${path}`;
 }
 
-async function fetchByLocale(locale: "ru" | "en") {
+async function fetchByLocale(locale: Locale) {
   const url = `${STRAPI_URL}/api/helicopters?populate=*&locale=${locale}&sort=createdAt:desc`;
-  const res = await fetch(url, { cache: "no-store" }); // всегда свежие данные
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Strapi ${res.status}: ${await res.text()}`);
   const json = await res.json();
   return (json.data ?? []) as any[];
 }
 
 async function fetchWithFallback(
-  preferred: "ru" | "en"
-): Promise<{ data: any[]; usedLocale: "ru" | "en" }> {
+  preferred: Locale
+): Promise<{ data: any[]; usedLocale: Locale }> {
   const primary = await fetchByLocale(preferred);
   if (primary.length) {
-    return { data: primary, usedLocale: preferred as "ru" | "en" };
+    return { data: primary, usedLocale: preferred };
   }
-  const alt = preferred === "ru" ? "en" : "ru";
+  const alt: Locale = preferred === "ru" ? "en" : "ru";
   const secondary = await fetchByLocale(alt);
-  return { data: secondary, usedLocale: alt as "ru" | "en" };
+  return { data: secondary, usedLocale: alt };
 }
-
-/** ========================================= */
+/** ================================== */
 
 const CONTACT = {
   phoneDisplay: "+7 967-250-01-02",
@@ -146,7 +147,7 @@ const DICT = {
 } as const;
 
 export default function Page() {
-  const [lang, setLang] = useState<"ru" | "en">("ru");
+  const [lang, setLang] = useState<Locale>("ru");
   const t = DICT[lang];
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -306,33 +307,32 @@ function Cases({ t }: any) {
 
 function Marketplace({ t, lang }: any) {
   const [items, setItems] = useState<any[]>([]);
-  const [usedLocale, setUsedLocale] = useState<"ru" | "en">(lang);
+  const [usedLocale, setUsedLocale] = useState<Locale>(lang as Locale);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      setLoading(true);
-      const { data, usedLocale } = await fetchWithFallback(lang);
-      if (!cancelled) {
-        setItems(data);
-        setUsedLocale(usedLocale); // теперь тип совпадает
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const result = await fetchWithFallback(lang as Locale);
+        const { data, usedLocale: usedLocaleStrict } = result;
+        if (!cancelled) {
+          setItems(data);
+          setUsedLocale(usedLocaleStrict); // <-- строго типизировано как Locale
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          setItems([]);
+          setUsedLocale(lang as Locale);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-      if (!cancelled) {
-        setItems([]);
-        setUsedLocale(lang);
-      }
-    } finally {
-      if (!cancelled) setLoading(false);
-    }
-  })();
-  return () => {
-    cancelled = true;
-  };
-}, [lang]);
+    })();
+    return () => { cancelled = true; };
+  }, [lang]);
 
   return (
     <Section id="marketplace" className="bg-gray-50">
@@ -354,7 +354,9 @@ function Marketplace({ t, lang }: any) {
             const photo = a.photos?.data?.[0]?.attributes?.url;
             const name = a.name;
             const year = a.year ?? "—";
-            const rawPrice = typeof a.price === "number" ? a.price : a.price ? Number(a.price) : undefined;
+            const rawPrice =
+              typeof a.price === "number" ? a.price :
+              a.price ? Number(a.price) : undefined;
             const price = typeof rawPrice === "number"
               ? `$${rawPrice.toLocaleString("en-US")}`
               : usedLocale === "ru" ? "Цена по запросу" : "Price on request";
@@ -392,7 +394,7 @@ function Marketplace({ t, lang }: any) {
           })}
         </div>
 
-        {items.length > 0 && usedLocale !== lang && (
+        {items.length > 0 && usedLocale !== (lang as Locale) && (
           <p className="mt-6 text-xs text-gray-500">
             {lang === "ru" ? "Пока нет русской версии карточек — показаны английские." : "Russian version not available yet — showing English."}
           </p>
