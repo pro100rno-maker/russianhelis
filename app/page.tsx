@@ -4,6 +4,23 @@ import { motion } from "framer-motion";
 
 /** ====== Типы и Strapi-клиент ====== */
 type Locale = "ru" | "en";
+type Currency = "USD" | "RUB";
+
+function formatPrice(
+  amount: number | undefined,
+  currency: Currency,
+  locale: Locale
+) {
+  if (typeof amount !== "number" || Number.isNaN(amount)) {
+    return locale === "ru" ? "Цена по запросу" : "Price on request";
+  }
+  const nf = new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  });
+  return nf.format(amount);
+}
 
 const STRAPI_URL =
   process.env.NEXT_PUBLIC_STRAPI_URL || "https://russianhelis-cms.onrender.com";
@@ -310,29 +327,28 @@ function Marketplace({ t, lang }: any) {
   const [usedLocale, setUsedLocale] = useState<Locale>(lang as Locale);
   const [loading, setLoading] = useState<boolean>(true);
 
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      setLoading(true);
-      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale);
-      if (!cancelled) {
-        setItems(data);
-        setUsedLocale((_usedLocale ?? lang) as Locale);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale);
+        if (!cancelled) {
+          setItems(data);
+          setUsedLocale((_usedLocale ?? lang) as Locale); // строго типизировано под Locale
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          setItems([]);
+          setUsedLocale(lang as Locale);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-      if (!cancelled) {
-        setItems([]);
-        setUsedLocale(lang as Locale);
-      }
-    } finally {
-      if (!cancelled) setLoading(false);
-    }
-  })();
-  return () => { cancelled = true; };
-}, [lang]);
-
+    })();
+    return () => { cancelled = true; };
+  }, [lang]);
 
   return (
     <Section id="marketplace" className="bg-gray-50">
@@ -354,12 +370,27 @@ useEffect(() => {
             const photo = a.photos?.data?.[0]?.attributes?.url;
             const name = a.name;
             const year = a.year ?? "—";
+
+            // --- цена ---
             const rawPrice =
               typeof a.price === "number" ? a.price :
               a.price ? Number(a.price) : undefined;
-            const price = typeof rawPrice === "number"
-              ? `$${rawPrice.toLocaleString("en-US")}`
-              : usedLocale === "ru" ? "Цена по запросу" : "Price on request";
+
+            // валюта из Strapi (по умолчанию USD)
+            const currency = String((a.currency || "USD")).toUpperCase();
+            // символ валюты
+            const symbol = currency === "RUB" ? "₽" : "$";
+            // локаль форматирования
+            const numberLocale = currency === "RUB" ? "ru-RU" : "en-US";
+
+            const price =
+              typeof rawPrice === "number"
+                ? `${rawPrice.toLocaleString(numberLocale)} ${symbol}`
+                : usedLocale === "ru"
+                  ? "Цена по запросу"
+                  : "Price on request";
+
+            // --- статус ---
             const status =
               a.status === "sold"
                 ? usedLocale === "ru" ? "Продан" : "Sold"
@@ -396,13 +427,16 @@ useEffect(() => {
 
         {items.length > 0 && usedLocale !== (lang as Locale) && (
           <p className="mt-6 text-xs text-gray-500">
-            {lang === "ru" ? "Пока нет русской версии карточек — показаны английские." : "Russian version not available yet — showing English."}
+            {lang === "ru"
+              ? "Пока нет русской версии карточек — показаны английские."
+              : "Russian version not available yet — showing English."}
           </p>
         )}
       </Container>
     </Section>
   );
 }
+
 
 function Contact({ t }: any) {
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [message, setMessage] = useState("");
