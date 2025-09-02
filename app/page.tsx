@@ -355,13 +355,13 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
       try {
         setLoading(true);
 
-        // ВАЖНО: переименовали, чтобы не затенять state-переменную
+        // не затеняем переменную state
         const { data, usedLocale: fetchedLocale } = await fetchWithFallback(lang);
         if (cancelled) return;
 
         setItems(data);
 
-        // Единая безопасная установка
+        // нормализуем вход
         setUsedLocale(toLocale(fetchedLocale, lang));
       } catch (e) {
         console.error(e);
@@ -388,7 +388,9 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
 
         {!loading && items.length === 0 && (
           <p className="mt-6 text-gray-600">
-            {usedLocale === "ru" ? "Пока нет опубликованных вертолётов." : "No published helicopters yet."}
+            {usedLocale === "ru"
+              ? "Пока нет опубликованных вертолётов."
+              : "No published helicopters yet."}
           </p>
         )}
 
@@ -398,14 +400,21 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
             const photo = a.photos?.data?.[0]?.attributes?.url;
             const name = a.name;
             const year = a.year ?? "—";
+
+            // нормализуем валюту (USD/RUB)
+            const currency: Currency =
+              String(a.currency || "USD").toUpperCase() === "RUB" ? "RUB" : "USD";
+
             const rawPrice =
-              typeof a.price === "number" ? a.price : a.price ? Number(a.price) : undefined;
-            const price =
-              typeof rawPrice === "number"
-                ? `$${rawPrice.toLocaleString("en-US")}`
-                : usedLocale === "ru"
-                ? "Цена по запросу"
-                : "Price on request";
+              typeof a.price === "number"
+                ? a.price
+                : a.price
+                ? Number(a.price)
+                : undefined;
+
+            // форматируем цену через Intl
+            const price = formatPrice(rawPrice, currency, usedLocale);
+
             const status =
               a.status === "sold"
                 ? usedLocale === "ru"
@@ -418,10 +427,16 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
             return (
               <div key={h.id} className="card overflow-hidden">
                 <div className="relative">
-                  <img src={mediaUrl(photo)} alt={name} className="w-full h-44 object-cover" />
+                  <img
+                    src={mediaUrl(photo)}
+                    alt={name}
+                    className="w-full h-44 object-cover"
+                  />
                   <span
                     className={`absolute top-2 right-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                      a.status === "sold" ? "bg-red-600 text-white" : "bg-green-600 text-white"
+                      a.status === "sold"
+                        ? "bg-red-600 text-white"
+                        : "bg-green-600 text-white"
                     }`}
                   >
                     {status}
@@ -462,6 +477,7 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
     </Section>
   );
 }
+
 
 function Contact({ t }: any) {
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [message, setMessage] = useState("");
