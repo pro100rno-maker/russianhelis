@@ -6,6 +6,14 @@ import { motion } from "framer-motion";
 type Locale = "ru" | "en";
 type Currency = "USD" | "RUB";
 
+/** Нормализация локали: любой ввод -> 'ru' | 'en' */
+function toLocale(x: unknown, fallback: Locale = "en"): Locale {
+  const v = String(x ?? "").trim().toLowerCase();
+  if (v.startsWith("ru")) return "ru";
+  if (v.startsWith("en")) return "en";
+  return fallback;
+}
+
 function formatPrice(
   amount: number | undefined,
   currency: Currency,
@@ -165,6 +173,20 @@ const DICT = {
 
 export default function Page() {
   const [lang, setLang] = useState<Locale>("ru");
+
+  /** Нормализуем стартовую локаль из URL (?lang=ru|en) или navigator.language */
+  useEffect(() => {
+    try {
+      const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const fromUrl = sp?.get("lang");
+      const fromNav = typeof navigator !== "undefined" ? navigator.language : "en";
+      const initial = toLocale(fromUrl ?? fromNav, "ru");
+      setLang(initial);
+    } catch {
+      /* no-op */
+    }
+  }, []);
+
   const t = DICT[lang];
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -327,20 +349,17 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
   const [usedLocale, setUsedLocale] = useState<Locale>(lang);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // type-guard на всякий случай
-  const isLocale = (v: any): v is Locale => v === "ru" || v === "en";
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        // важное переименование, чтобы не путать с локальным стейтом usedLocale
-        const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang);
+        // получаем данные и внутренне определённую локаль из бэкапа
+        const { data, usedLocale: usedFromData } = await fetchWithFallback(lang);
         if (!cancelled) {
           setItems(data);
-          // строго приводим к типу Locale (через гард)
-          setUsedLocale(isLocale(_usedLocale) ? _usedLocale : lang);
+          // НОРМАЛИЗАЦИЯ: какой бы тип ни пришёл снаружи — приводим к 'ru' | 'en'
+          setUsedLocale(toLocale(usedFromData, lang));
         }
       } catch (e) {
         console.error(e);
@@ -441,9 +460,6 @@ function Marketplace({ t, lang }: { t: any; lang: Locale }) {
     </Section>
   );
 }
-
-
-
 
 function Contact({ t }: any) {
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [message, setMessage] = useState("");
