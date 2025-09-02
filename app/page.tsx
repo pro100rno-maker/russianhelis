@@ -310,29 +310,28 @@ function Marketplace({ t, lang }: any) {
   const [usedLocale, setUsedLocale] = useState<Locale>(lang as Locale);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const result = await fetchWithFallback(lang as Locale);
-        const { data, usedLocale: usedLocaleStrict } = result;
-        if (!cancelled) {
-          setItems(data);
-          setUsedLocale(usedLocaleStrict); // <-- строго типизировано как Locale
-        }
-      } catch (e) {
-        console.error(e);
-        if (!cancelled) {
-          setItems([]);
-          setUsedLocale(lang as Locale);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+      setLoading(true);
+      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale); // <- переименовали
+      if (!cancelled) {
+        setItems(data);
+        setUsedLocale(_usedLocale as Locale); // <- явный узкий каст
       }
-    })();
-    return () => { cancelled = true; };
-  }, [lang]);
+    } catch (e) {
+      console.error(e);
+      if (!cancelled) {
+        setItems([]);
+        setUsedLocale(lang as Locale);
+      }
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  })();
+  return () => { cancelled = true; };
+}, [lang]);
 
   return (
     <Section id="marketplace" className="bg-gray-50">
