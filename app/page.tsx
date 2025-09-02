@@ -315,10 +315,10 @@ useEffect(() => {
   (async () => {
     try {
       setLoading(true);
-      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale); // <- переименовали
+      const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale);
       if (!cancelled) {
         setItems(data);
-        setUsedLocale(_usedLocale as Locale); // <- явный узкий каст
+        setUsedLocale((_usedLocale ?? lang) as Locale);
       }
     } catch (e) {
       console.error(e);
@@ -332,6 +332,7 @@ useEffect(() => {
   })();
   return () => { cancelled = true; };
 }, [lang]);
+
 
   return (
     <Section id="marketplace" className="bg-gray-50">
