@@ -322,32 +322,39 @@ function Cases({ t }: any) {
   );
 }
 
-function Marketplace({ t, lang }: any) {
+function Marketplace({ t, lang }: { t: any; lang: Locale }) {
   const [items, setItems] = useState<any[]>([]);
-  const [usedLocale, setUsedLocale] = useState<Locale>(lang as Locale);
+  const [usedLocale, setUsedLocale] = useState<Locale>(lang);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // type-guard на всякий случай
+  const isLocale = (v: any): v is Locale => v === "ru" || v === "en";
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang as Locale);
+        // важное переименование, чтобы не путать с локальным стейтом usedLocale
+        const { data, usedLocale: _usedLocale } = await fetchWithFallback(lang);
         if (!cancelled) {
           setItems(data);
-          setUsedLocale((_usedLocale ?? lang) as Locale); // строго типизировано под Locale
+          // строго приводим к типу Locale (через гард)
+          setUsedLocale(isLocale(_usedLocale) ? _usedLocale : lang);
         }
       } catch (e) {
         console.error(e);
         if (!cancelled) {
           setItems([]);
-          setUsedLocale(lang as Locale);
+          setUsedLocale(lang);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [lang]);
 
   return (
@@ -370,62 +377,60 @@ function Marketplace({ t, lang }: any) {
             const photo = a.photos?.data?.[0]?.attributes?.url;
             const name = a.name;
             const year = a.year ?? "—";
-
-            // --- цена ---
             const rawPrice =
-              typeof a.price === "number" ? a.price :
-              a.price ? Number(a.price) : undefined;
-
-            // валюта из Strapi (по умолчанию USD)
-            const currency = String((a.currency || "USD")).toUpperCase();
-            // символ валюты
-            const symbol = currency === "RUB" ? "₽" : "$";
-            // локаль форматирования
-            const numberLocale = currency === "RUB" ? "ru-RU" : "en-US";
-
+              typeof a.price === "number" ? a.price : a.price ? Number(a.price) : undefined;
             const price =
               typeof rawPrice === "number"
-                ? `${rawPrice.toLocaleString(numberLocale)} ${symbol}`
+                ? `$${rawPrice.toLocaleString("en-US")}`
                 : usedLocale === "ru"
-                  ? "Цена по запросу"
-                  : "Price on request";
-
-            // --- статус ---
+                ? "Цена по запросу"
+                : "Price on request";
             const status =
               a.status === "sold"
-                ? usedLocale === "ru" ? "Продан" : "Sold"
-                : usedLocale === "ru" ? "Продаётся" : "For sale";
+                ? usedLocale === "ru"
+                  ? "Продан"
+                  : "Sold"
+                : usedLocale === "ru"
+                ? "Продаётся"
+                : "For sale";
 
             return (
               <div key={h.id} className="card overflow-hidden">
                 <div className="relative">
                   <img src={mediaUrl(photo)} alt={name} className="w-full h-44 object-cover" />
-                  <span className={`absolute top-2 right-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                    a.status === "sold" ? "bg-red-600 text-white" : "bg-green-600 text-white"
-                  }`}>
+                  <span
+                    className={`absolute top-2 right-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                      a.status === "sold" ? "bg-red-600 text-white" : "bg-green-600 text-white"
+                    }`}
+                  >
                     {status}
                   </span>
                 </div>
                 <div className="card-head flex items-center justify-between">
-                  <span>{name} • {year}</span>
+                  <span>
+                    {name} • {year}
+                  </span>
                   <span className="text-sm font-normal text-gray-600">{price}</span>
                 </div>
                 {a.location && (
                   <div className="card-body pt-0">
                     <p className="text-gray-600">
-                      {usedLocale === "ru" ? "Локация: " : "Location: "}{a.location}
+                      {usedLocale === "ru" ? "Локация: " : "Location: "}
+                      {a.location}
                     </p>
                   </div>
                 )}
                 <div className="card-body">
-                  <a href="#contact" className="btn btn-primary mt-2">{t.marketCTA}</a>
+                  <a href="#contact" className="btn btn-primary mt-2">
+                    {t.marketCTA}
+                  </a>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {items.length > 0 && usedLocale !== (lang as Locale) && (
+        {items.length > 0 && usedLocale !== lang && (
           <p className="mt-6 text-xs text-gray-500">
             {lang === "ru"
               ? "Пока нет русской версии карточек — показаны английские."
@@ -436,6 +441,7 @@ function Marketplace({ t, lang }: any) {
     </Section>
   );
 }
+
 
 
 function Contact({ t }: any) {
